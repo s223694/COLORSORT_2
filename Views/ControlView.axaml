@@ -1,0 +1,22 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ColorSorterGUI.Views.ControlView"
+        Width="400"
+        Height="300"
+        Title="Color Sorter">
+
+    <StackPanel Margin="20" Spacing="15">
+
+        <Button Content="Sort Blue"
+                Click="SortBlue_Click"/>
+
+        <Button Content="Sort Green"
+                Click="SortGreen_Click"/>
+
+        <Button Content="Sort Red"
+                Click="SortRed_Click"/>
+
+        <TextBlock x:Name="StatusText"/>
+
+    </StackPanel>
+</Window>
