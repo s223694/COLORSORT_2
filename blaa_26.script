@@ -1,9 +1,38 @@
 def blaa_26():
+    # ---- GUI logging (robot -> PC) ----
+  global gui_ip = "172.20.254.63"
+  global gui_port = 45123
+  global gui_socket_name = "gui_log"
+  global gui_sock_ok = False
+
+  def gui_log(msg):
+    if (gui_sock_ok):
+      socket_send_string(msg, gui_socket_name)
+      socket_send_string("\n", gui_socket_name)
+    end
+  end
+
+  gui_sock_ok = socket_open(gui_ip, gui_port, gui_socket_name)
+  gui_log("RUN blaa_26.script START")
+
   global _hidden_verificationVariable=0
-  tool_wrench_limit_disable()
-  set_target_payload(1.122000, [0.000000, -0.003800, 0.086500], [0.001865, 0.001865, 0.001865, 0.000000, 0.000000, 0.000000])
-  set_tcp(p[0.0,-0.09,0.2165,0.524,0.0,0.0])
+  step_count_b020c6c1_ae36_475c_a6e8_b652a3040cc0 = 0.0
+  thread Step_Counter_Thread_d1137080_fd3b_440e_a017_5098126ef5e2():
+    while (True):
+      step_count_b020c6c1_ae36_475c_a6e8_b652a3040cc0 = step_count_b020c6c1_ae36_475c_a6e8_b652a3040cc0 + 1.0
+      sync()
+    end
+  end
+  run Step_Counter_Thread_d1137080_fd3b_440e_a017_5098126ef5e2()
   motion_version_set(1)
+  set_safety_mode_transition_hardness(1)
+  set_tcp(p[0.0,-0.09,0.2165,0.524,0.0,0.0])
+  set_tool_communication(True, 1000000, 2, 1, 1.5, 3.5)
+  set_tool_output_mode(0)
+  set_tool_digital_output_mode(0, 1)
+  set_tool_digital_output_mode(1, 1)
+  set_tool_voltage(24)
+  set_target_payload(1.122000, [0.000000, -0.003800, 0.086500], [0.001865, 0.001865, 0.001865, 0.000000, 0.000000, 0.000000])
   set_gravity([0.0, 0.0, 9.82])
   set_standard_analog_input_domain(0, 1)
   set_standard_analog_input_domain(1, 1)
@@ -12,12 +41,7 @@ def blaa_26():
   set_analog_outputdomain(0, 0)
   set_analog_outputdomain(1, 0)
   set_input_actions_to_default()
-  set_tool_communication(True, 1000000, 2, 1, 1.5, 3.5)
-  set_tool_output_mode(0)
-  set_tool_digital_output_mode(0, 1)
-  set_tool_digital_output_mode(1, 1)
-  set_tool_voltage(24)
-  set_safety_mode_transition_hardness(1)
+  tool_wrench_limit_disable()
   global BackSideCamera=p[0.0,0.15,0.0,-1.5699999999999992,-1.923461631168314E-16,-1.9234616318967958E-16]
   global F25_grp1_point1=p[0.2781958332102092,-0.31104909274236875,-0.06244474122228899,3.1338258486756363,0.01720567206260599,-0.0051106581084877645]
   global F25_grp1_point2=p[0.28836661035344396,-0.30865241397276766,-0.13460538969121222,3.0713346779574917,-0.07231603189646822,0.07125237408640649]
@@ -1766,14 +1790,6 @@ def blaa_26():
   
   #======    End of OnRobot RG Run    ======#
   # end: URCap Installation Node
-  step_count_52f34d78_444c_4e7d_bd53_4f326a12f8f5 = 0.0
-  thread Step_Counter_Thread_09e7352e_4a63_43f8_8338_593e157c5537():
-    while (True):
-      step_count_52f34d78_444c_4e7d_bd53_4f326a12f8f5 = step_count_52f34d78_444c_4e7d_bd53_4f326a12f8f5 + 1.0
-      sync()
-    end
-  end
-  run Step_Counter_Thread_09e7352e_4a63_43f8_8338_593e157c5537()
   global EyesPickAppr=p[0.0,0.0,0.0,0.0,0.0,0.0]
   global EyesPickPose=p[0.0,0.0,0.0,0.0,0.0,0.0]
   global EyesWorkpCount=-1
@@ -1781,8 +1797,8 @@ def blaa_26():
   global EyesWorkpiece=-1
   global Waypoint_2_p=p[-.164640814206, -.610404095760, .369846588126, 2.089803906459, .068408672285, .041977084559]
   global Waypoint_2_q=[-1.7383444944964808, -2.069730421105856, -1.0369067192077637, -0.03065557897601323, 1.8090169429779053, 3.1415796279907227]
-  global Waypoint_1_p=p[-.430254123340, -.447906038445, -.060543809058, 2.000133244500, -1.995415033833, -.048950922589]
-  global Waypoint_1_q=[-1.9153860251056116, -2.559352060357565, -1.1246182918548584, -0.5218855899623414, 0.9283866882324219, 4.243502616882324]
+  global Waypoint_1_p=p[-.486136106554, -.498543353503, -.045443321805, 1.978307949770, -1.819842099623, .038154972757]
+  global Waypoint_1_q=[-2.0057204405414026, -2.813702245751852, -0.6972112059593201, -0.4495430749705811, 1.0280816555023193, 4.064173221588135]
   global Waypoint_3_p=p[-.197888750454, -.599583389729, .352095353799, 2.146106005675, .003944281878, .022876997770]
   global Waypoint_3_q=[-1.7944272893816047, -2.0698446129197805, -1.039862230111157, -0.0846651487548904, 1.8107741114610814, 3.1412916169067233]
   while (True):
@@ -1795,7 +1811,10 @@ def blaa_26():
     #   Type: Eyes Locate
     $ 5 "Eyes Locate"
     eyes_cnt = 0
+    gui_log("STEP EyesLocate START")
     eyes_cnt = eyes_locate(13, -1)
+    gui_log("STEP EyesLocate DONE cnt=" + to_str(eyes_cnt))
+
     if (eyes_cnt > 0):
       eyes_workp_cnt = eyes_cnt
       # begin: URCap Program Node
@@ -1820,6 +1839,9 @@ rg_payload_set(mass = 0.0, tool_index = 0, use_guard = True)
       if (eyes_workp_type != -1):
         $ 8 "EyesWorkpCount≔eyes_workp_cnt" "noBreak"
         global EyesWorkpCount=eyes_workp_cnt
+        gui_log("DATA EyesWorkpCount=" + to_str(EyesWorkpCount))
+        gui_log("DATA EyesWorkpiece=" + to_str(EyesWorkpiece))
+
         $ 9 "EyesWorkpPose≔eyes_workp_pose" "noBreak"
         global EyesWorkpPose=eyes_workp_pose
         $ 10 "EyesWorkpiece≔eyes_workp_type" "noBreak"
@@ -1835,16 +1857,19 @@ rg_payload_set(mass = 0.0, tool_index = 0, use_guard = True)
           $ 13 "MoveJ" "noBreak"
           $ 14 "EyesPickAppr" "noBreak"
           set_tcp(p[0.0,-0.09,0.216485,0.523599,0.0,0.0])
+          gui_log("STEP Pick START")
           movej(EyesPickAppr, a=1.3962634015954636, v=1.0471975511965976)
           $ 15 "MoveL" "noBreak"
           $ 16 "EyesPickPose" "noBreak"
-          set_tcp(p[0.0,-0.09,0.211,0.523599,0.0,0.0])
+          set_tcp(p[0.0,-0.09,0.215,0.523599,0.0,0.0])
           movel(EyesPickPose, a=1.2, v=0.25)
           # begin: URCap Program Node
           #   Source: OnRobot, 6.4.1, OnRobot A/S
           #   Type: RG Grip
           $ 17 "RG Grip" "noBreak"
-on_return = rg_grip(5.0, 40.0, tool_index = 0, blocking = True, depth_comp = False, popupmsg = True)
+on_return = rg_grip(10.0, 40.0, tool_index = 0, blocking = True, depth_comp = False, popupmsg = True)
+gui_log("STEP GripClose DONE")
+
 rg_payload_set(mass = 0.0, tool_index = 0, use_guard = True)
           # end: URCap Program Node
           $ 18 "MoveL" "noBreak"
@@ -1859,21 +1884,25 @@ rg_payload_set(mass = 0.0, tool_index = 0, use_guard = True)
           #   Type: RG Grip
           $ 22 "RG Grip" "noBreak"
 on_return = rg_grip(50.0, 40.0, tool_index = 0, blocking = True, depth_comp = False, popupmsg = True)
+gui_log("STEP Place DONE color=BLUE")
 rg_payload_set(mass = 0.0, tool_index = 0, use_guard = True)
           # end: URCap Program Node
           $ 23 "MoveJ" "noBreak"
           $ 24 "Waypoint_3" "noBreak"
           movej(get_inverse_kin(Waypoint_3_p, qnear=Waypoint_3_q), a=1.3962634015954636, v=1.0471975511965976)
           $ 25 "If EyesWorkpCount<1" "noBreak"
-          if (EyesWorkpCount<1):
-            $ 26 "Halt" "noBreak"
-            halt
+         if (EyesWorkpCount<1):
+          gui_log("RUN blaa_26 END")
+          if (gui_sock_ok):
+            socket_close(gui_socket_name)
           end
+          halt
         end
         # end: URCap Program Node
       end
       # end: URCap Program Node
     end
     # end: URCap Program Node
+  end
   end
 end

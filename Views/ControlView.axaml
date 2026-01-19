@@ -1,22 +1,87 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="ColorSorterGUI.Views.ControlView"
-        Width="400"
-        Height="300"
-        Title="Color Sorter">
+        Title="ColorSorterGUI"
+        Width="900"
+        Height="650">
 
-    <StackPanel Margin="20" Spacing="15">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,*,Auto">
 
-        <Button Content="Sort Blue"
-                Click="SortBlue_Click"/>
+    <!-- Top: Buttons -->
+    <StackPanel Orientation="Horizontal" Spacing="10" Grid.Row="0">
+      <Button Content="Sort Blue"  Width="140" Click="SortBlue_Click"/>
+      <Button Content="Sort Green" Width="140" Click="SortGreen_Click"/>
+      <Button Content="Sort Red"   Width="140" Click="SortRed_Click"/>
 
-        <Button Content="Sort Green"
-                Click="SortGreen_Click"/>
+      <Separator Width="20"/>
 
-        <Button Content="Sort Red"
-                Click="SortRed_Click"/>
-
-        <TextBlock x:Name="StatusText"/>
-
+      <Button Content="Sort All" Width="140" Click="SortAll_Click"/>
+      <Button Content="Cancel Queue" Width="140" Click="CancelQueue_Click"/>
     </StackPanel>
+
+    <!-- Status -->
+    <TextBlock x:Name="StatusText"
+               Grid.Row="1"
+               Margin="0,12,0,0"
+               Text="Ready."
+               FontSize="14"/>
+
+    <!-- Middle: Inventory + Log -->
+    <Grid Grid.Row="2" Margin="0,14,0,0" ColumnDefinitions="360,20,*">
+
+      <!-- Inventory -->
+      <Border Grid.Column="0" Padding="12" BorderBrush="#444" BorderThickness="1" CornerRadius="6">
+        <StackPanel Spacing="10">
+
+          <TextBlock Text="Inventory overview" FontSize="16" FontWeight="SemiBold"/>
+
+          <!-- Red -->
+          <Grid ColumnDefinitions="*,Auto,Auto,Auto" RowDefinitions="Auto" VerticalAlignment="Center">
+            <TextBlock Grid.Column="0" Text="Red (Non reusable)"/>
+            <TextBlock x:Name="RedCountText" Grid.Column="1" Text="0" Margin="10,0" FontWeight="Bold"/>
+            <Button Grid.Column="2" Content="+" Width="34" Click="IncRed_Click"/>
+            <Button Grid.Column="3" Content="-" Width="34" Margin="6,0,0,0" Click="DecRed_Click"/>
+          </Grid>
+
+          <!-- Green -->
+          <Grid ColumnDefinitions="*,Auto,Auto,Auto" RowDefinitions="Auto" VerticalAlignment="Center">
+            <TextBlock Grid.Column="0" Text="Green (Reusable)"/>
+            <TextBlock x:Name="GreenCountText" Grid.Column="1" Text="0" Margin="10,0" FontWeight="Bold"/>
+            <Button Grid.Column="2" Content="+" Width="34" Click="IncGreen_Click"/>
+            <Button Grid.Column="3" Content="-" Width="34" Margin="6,0,0,0" Click="DecGreen_Click"/>
+          </Grid>
+
+          <!-- Blue -->
+          <Grid ColumnDefinitions="*,Auto,Auto,Auto" RowDefinitions="Auto" VerticalAlignment="Center">
+            <TextBlock Grid.Column="0" Text="Blue (Refurbing)"/>
+            <TextBlock x:Name="BlueCountText" Grid.Column="1" Text="0" Margin="10,0" FontWeight="Bold"/>
+            <Button Grid.Column="2" Content="+" Width="34" Click="IncBlue_Click"/>
+            <Button Grid.Column="3" Content="-" Width="34" Margin="6,0,0,0" Click="DecBlue_Click"/>
+          </Grid>
+
+          <TextBlock Text="Auto-count updates on:  STEP Place DONE color=..."
+                     Opacity="0.8"
+                     FontSize="12"
+                     Margin="0,10,0,0"/>
+        </StackPanel>
+      </Border>
+
+      <!-- Log -->
+      <Border Grid.Column="2" Padding="12" BorderBrush="#444" BorderThickness="1" CornerRadius="6">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Robot log" FontSize="16" FontWeight="SemiBold"/>
+          <ListBox x:Name="LogList" Height="420"/>
+          <TextBlock Text="Tip: 'RUN &lt;name&gt; END' is used to trigger Sort All queue."
+           Opacity="0.8"
+           FontSize="12"/>
+
+        </StackPanel>
+      </Border>
+
+    </Grid>
+
+    <!-- Footer (optional) -->
+    <TextBlock Grid.Row="3" Margin="0,12,0,0" Opacity="0.7" FontSize="12"
+               Text="Listener port: 45123 (must match gui_port in URScripts)"/>
+  </Grid>
 </Window>

@@ -1,0 +1,24 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ColorSorterGUI.Views.LoginWindow"
+        Width="420" Height="280"
+        Title="Login"
+        WindowStartupLocation="CenterScreen">
+
+  <StackPanel Margin="20" Spacing="10">
+    <TextBlock Text="Login" FontSize="20" FontWeight="Bold"/>
+
+    <TextBox x:Name="UsernameBox" Watermark="Username"/>
+    <TextBox x:Name="PasswordBox" Watermark="Password" PasswordChar="•"/>
+
+    <StackPanel Orientation="Horizontal" Spacing="10">
+      <Button Content="Exit" Click="Exit_Click" Width="120"/>
+      <Button x:Name="LoginButton" Content="Login" Click="Login_Click" Width="120"/>
+    </StackPanel>
+
+    <TextBlock x:Name="ErrorText" Foreground="Red" TextWrapping="Wrap"/>
+    <TextBlock Opacity="0.7" FontSize="12" TextWrapping="Wrap">
+      First run creates default admin: admin / admin123 (change it by creating a new admin and deleting the old later).
+    </TextBlock>
+  </StackPanel>
+</Window>

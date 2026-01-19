@@ -1,0 +1,34 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ColorSorterGUI.Views.AdminWindow"
+        Width="520" Height="360"
+        Title="Admin"
+        WindowStartupLocation="CenterScreen">
+
+  <StackPanel Margin="20" Spacing="12">
+    <TextBlock Text="Admin" FontSize="20" FontWeight="Bold"/>
+
+    <!-- "Create user" panel (replaces GroupBox) -->
+    <Border BorderBrush="#444" BorderThickness="1" CornerRadius="6" Padding="12">
+      <StackPanel Spacing="10">
+        <TextBlock Text="Create user" FontSize="14" FontWeight="SemiBold"/>
+
+        <TextBox x:Name="NewUsernameBox" Watermark="Username"/>
+        <TextBox x:Name="NewPasswordBox" Watermark="Password" PasswordChar="•"/>
+
+        <ComboBox x:Name="RoleBox" SelectedIndex="0" Width="160">
+          <ComboBoxItem Content="User"/>
+          <ComboBoxItem Content="Admin"/>
+        </ComboBox>
+
+        <Button Content="Create" Click="Create_Click" Width="120"/>
+        <TextBlock x:Name="AdminStatusText" TextWrapping="Wrap"/>
+      </StackPanel>
+    </Border>
+
+    <StackPanel Orientation="Horizontal" Spacing="10">
+      <Button Content="Open Control Panel" Click="OpenControl_Click" Width="180"/>
+      <Button Content="Logout" Click="Logout_Click" Width="120"/>
+    </StackPanel>
+  </StackPanel>
+</Window>

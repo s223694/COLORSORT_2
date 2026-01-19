@@ -1,0 +1,17 @@
+# build output
+bin/
+obj/
+
+# macOS
+.DS_Store
+
+# databases
+*.sqlite
+*.db
+
+# VS Code
+.vscode/
+
+# user-specific
+*.user
+*.suo
