@@ -12,28 +12,48 @@ namespace ColorSorterGUI.Views;
 
 public partial class ControlView : Window
 {
+    // Service der kan sende URScript til robotten og modtage robot-log via TCP.
     private readonly RobotService _robot = new();
+
+    // Repository til SQLite inventory-tabellen (Red/Green/Blue counts).
     private readonly InventoryRepository _inventory = new();
 
+    // Log-linjer som UI viser i en liste (ObservableCollection opdaterer UI automatisk).
     private readonly ObservableCollection<string> _logLines = new();
 
+    // PC-port hvor vi lytter efter log fra robotten.
+    // VIGTIGT: Denne port skal matche det robot-script bruger, når det "socket_open" tilbage til GUI.
     private const int RobotLogPort = 45123; // MUST match URScript gui_port
 
-    // Anti double-count for same "Place DONE" line
+    // Bruges til at undgå dobbelt DB-opdatering hvis den samme "Place DONE" linje kommer igen.
+    // (Robot kan nogle gange sende samme linje flere gange).
     private string? _lastPlaceLine;
 
-    // We prefer this for counting:
-    // STEP EyesLocate DONE cnt=2
+    // 1) Når vi ser en log-linje: "STEP EyesLocate DONE cnt=<n>"
+    //    så gemmer vi <n> i _lastEyesLocateCount.
+    //
+    // 2) Hvis vi i stedet ser en fallback linje: "DATA EyesWorkpCount=<n>"
+    //    så gemmer vi den i _lastEyesWorkpCount.
+    //
+    // 3) Når robotten senere melder: "STEP Place DONE color=<COLOR>"
+    //    så bruger vi den senest gemte count som "delta" i inventory.
+    //
+    // 4) Efter vi har brugt count'en til DB-opdatering, resetter vi counts til 1,
+    //    så næste cyklus ikke "arver" et gammelt tal ved en fejl.
     private int _lastEyesLocateCount = 1;
 
-    // Fallback if cnt isn't available
+    // Fallback count source (hvis cnt ikke sendes)
     private int _lastEyesWorkpCount = 1;
 
-    // ---- SORT ALL QUEUE ----
+   
+    // Flag der betyder om vi er midt i en "Sort All" sekvens.
     private bool _queueRunning = false;
+
+    // Index i køen (hvilket script vi er nået til).
     private int _queueIndex = 0;
 
-    // NOTE: RunName must match your URScript: "RUN <name> END"
+    // NOTE: RunName skal matche jeres URScript output format: "RUN <name> END"
+    // Når vi sender et script, venter vi på at robotten sender "RUN <name> END" før vi sender næste.
     private readonly (string Script, string RunName)[] _queue =
     {
         ("blaa_26.script",  "blaa_26"),
@@ -45,81 +65,102 @@ public partial class ControlView : Window
     {
         InitializeComponent();
 
+        // Binder log-listen (fx ListBox) til vores ObservableCollection.
         LogList.ItemsSource = _logLines;
 
-        // Start robot->PC listener
+        // Start PC-server, så robotten kan sende log-linjer til GUI'en.
         _robot.StartLogListener(RobotLogPort);
 
-        // Receive lines from robot
+        // Abonner på log event. RobotService kalder denne callback fra baggrundstråde,
+        // så UI-opdateringer skal ind på UI-tråden -> Dispatcher.UIThread.Post(...)
         _robot.RobotLog += line =>
             Dispatcher.UIThread.Post(() =>
             {
-                // Some scripts may include "\n" as text inside a single line:
+                // Nogle scripts kan sende "\n" inde i teksten.
+                // Derfor splitter vi både på rigtige newlines og tekst-escapes ("\\n").
                 foreach (var part in line.Split(new[] { "\n", "\r\n", "\\n" }, StringSplitOptions.RemoveEmptyEntries))
                 {
-                    // Trim and ignore empty lines
+                    // Trim whitespace
                     var trimmed = part.Trim();
+
+                    // Ignorer tomme linjer
                     if (string.IsNullOrEmpty(trimmed))
                         continue;
-                    // Add to log view
+
+                    // Tilføj linjen til log-viewet i UI
                     _logLines.Add(trimmed);
+
+                    // Hold log-listen bounded (max 500 linjer) så UI ikke bliver tungt.
                     if (_logLines.Count > 500) _logLines.RemoveAt(0);
+
+                    // Auto-scroll så den nyeste linje er synlig.
                     LogList.ScrollIntoView(trimmed);
 
-                    // Capture counts from log
-                    TryHandleEyesLocateCount(trimmed); // <-- preferred
-                    TryHandleEyesWorkpCount(trimmed);  // <-- fallback
+                    // ----------------- EYES COUNT OPSAMLING -----------------
+                    // Disse metoder kigger efter specifikke loglinjer og gemmer count i variabler.
+                    // De ændrer IKKE DB direkte - de gemmer kun "seneste count" til senere.
+                    TryHandleEyesLocateCount(trimmed); // <-- foretrukket kilde
+                    TryHandleEyesWorkpCount(trimmed);  // <-- fallback kilde
 
-                    // Auto DB update on "STEP Place DONE color=..."
+                    // ----------------- AUTO DB UPDATE -----------------
+                    // Når robotten har placeret emnerne og melder det er DONE,
+                    // så bruger vi den senest opsamlede EyesCount til at opdatere inventory.
                     TryHandlePlaceDone(trimmed);
 
-                    // Queue logic on "RUN <name> END"
+                    // ----------------- SORT ALL KØ -----------------
+                    // Hvis Sort All kører, så lytter vi efter "RUN <name> END" for at vide hvornår vi skal sende næste.
                     TryHandleRunEnd(trimmed);
                 }
             });
 
+        // Kør init (DB + counts) uden at blokere UI.
         _ = InitializeAsync();
     }
-    
+
     private async Task InitializeAsync()
     {
         try
         {
-            // Initialize DB
+            // Opret tabeller + seed hvis DB ikke findes endnu.
             await DatabaseService.InitializeAsync();
-            // Load initial counts
+
+            // Læs inventory counts og vis dem på UI
             await RefreshCountsAsync();
-            // Ready
+
             StatusText.Text = "Ready.";
         }
         catch (Exception ex)
         {
+            // Hvis DB init fejler, viser vi det til brugeren.
             StatusText.Text = $"DB init failed: {ex.Message}";
         }
     }
+
     // ---- REFRESH COUNTS ----
+    // Læser counts fra DB og opdaterer UI-tekster.
     private async Task RefreshCountsAsync()
     {
-        // Get counts from DB
         var counts = await _inventory.GetCountsAsync();
         RedCountText.Text = counts[ComponentColor.Red].ToString();
         GreenCountText.Text = counts[ComponentColor.Green].ToString();
         BlueCountText.Text = counts[ComponentColor.Blue].ToString();
     }
-    // ---- ADJUST COUNT ----
+
+    // ---- ADJUST COUNT (MANUELT) ----
+    // Bruges af +/- knapperne til manuelt at justere counts i DB.
     private async Task AdjustAsync(ComponentColor color, int delta)
     {
-        // Update DB
         try
         {
+            // (Kan diskuteres om dette er nødvendigt hver gang, men det sikrer at DB er init.)
             await DatabaseService.InitializeAsync();
-            // Change count
+
+            // Opdater count for valgt farve med delta (+1 / -1)
             var newValue = await _inventory.ChangeCountAsync(color, delta);
 
-            // Update UI
+            // Opdater UI kun for den relevante farve
             switch (color)
             {
-                // Update relevant text box
                 case ComponentColor.Red: RedCountText.Text = newValue.ToString(); break;
                 case ComponentColor.Green: GreenCountText.Text = newValue.ToString(); break;
                 case ComponentColor.Blue: BlueCountText.Text = newValue.ToString(); break;
@@ -131,28 +172,39 @@ public partial class ControlView : Window
         }
     }
 
-    // Parse: "STEP EyesLocate DONE cnt=2"
+    // ----------------- EYES COUNT OPSAMLING (FORETRUKKET) -----------------
+    // Parse eksempel: "STEP EyesLocate DONE cnt=2"
+    //
+    // Når robotten afslutter EyesLocate-step, sender den hvor mange emner den fandt.
+    // Vi gemmer n i _lastEyesLocateCount, så det kan bruges senere når Place DONE kommer.
     private void TryHandleEyesLocateCount(string line)
     {
-        // Preferred count source
         const string prefix = "STEP EyesLocate DONE cnt=";
-        // Check prefix
+
+        // Hvis linjen ikke starter med det forventede prefix, gør vi ingenting.
         if (!line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             return;
-        // Extract number
+
+        // Alt efter prefix forventes at være tallet (cnt)
         var s = line.Substring(prefix.Length).Trim();
 
-
-        // Clamp values
+        // Parse tallet og clamp det til fornuftige grænser (sikkerhed mod fejl i log)
         if (int.TryParse(s, out var n))
         {
-            if (n <= 0) n = 1;
-            if (n > 200) n = 200;
+            if (n <= 0) n = 1;   // vi tillader ikke 0/negativt, da det ville "fjerne" inventory eller give mærkelig logik
+            if (n > 200) n = 200; // sikkerhed mod ekstremt store tal
+
+            // GEM count’en:
+            // Denne variabel repræsenterer nu "senest kendte" antal fundet komponenter i den aktuelle cyklus.
             _lastEyesLocateCount = n;
         }
     }
 
-    // Parse: "DATA EyesWorkpCount=12" (fallback)
+    // ----------------- EYES COUNT OPSAMLING (FALLBACK) -----------------
+    // Parse eksempel: "DATA EyesWorkpCount=12"
+    //
+    // Hvis scripts ikke sender "EyesLocate DONE cnt=...",
+    // kan vi i stedet bruge en anden datapunkt-linje som fallback.
     private void TryHandleEyesWorkpCount(string line)
     {
         const string prefix = "DATA EyesWorkpCount=";
@@ -166,48 +218,62 @@ public partial class ControlView : Window
         {
             if (n <= 0) n = 1;
             if (n > 200) n = 200;
+
+            // GEM fallback count’en (bruges hvis EyesLocate count ikke er tilgængelig)
             _lastEyesWorkpCount = n;
         }
     }
 
-    // ---- AUTO COUNT ----
+    // ----------------- AUTO INVENTORY UPDATE -----------------
+    // Trigger eksempel: "STEP Place DONE color=RED"
+    //
+    // Når Place-step er færdig, betyder det: robotten har placeret komponenterne i en bestemt farve-bakke.
+    // På det tidspunkt opdaterer vi inventory i DB med "hvor mange" der blev placeret.
+    //
+    // Hvor mange = den count vi tidligere opsamlede fra EyesLocate/EyesWorkp.
     private void TryHandlePlaceDone(string line)
     {
-        // Example: "STEP Place DONE color=RED"
         const string prefix = "STEP Place DONE color=";
-        
 
+        // Anti double-count: hvis vi har behandlet præcis samme linje før, så returnér.
         if (line == _lastPlaceLine) return;
-        // Avoid double-counting same line
+
+        // Hvis det ikke er en Place DONE linje, så gør vi intet.
         if (!line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return;
 
-        // Extract color
+        // Udtræk farvetekst efter prefix (fx "RED")
         var colorText = line.Substring(prefix.Length).Trim().ToUpperInvariant();
+
+        // Konverter tekst -> enum
         if (!TryParseColor(colorText, out var color)) return;
 
-        // Remember last processed line
+        // Husk linjen så vi ikke tæller den samme igen
         _lastPlaceLine = line;
 
-        // Prefer EyesLocate count. Fallback to EyesWorkpCount.
+        // Beregn delta:
+        // - Vi "foretrækker" EyesLocate count, da den er tættest på vision-resultatet for cyklussen
+        // - Hvis den ikke var tilgængelig, bruger vi fallback EyesWorkpCount
         var delta = _lastEyesLocateCount > 0 ? _lastEyesLocateCount : _lastEyesWorkpCount;
 
-        // Reset after consuming so next cycle doesn't inherit the old number
+        // VIGTIGT: Reset counts efter vi har "forbrugt" dem,
+        // så næste Place DONE ikke bruger et gammelt tal ved en fejl.
         _lastEyesLocateCount = 1;
         _lastEyesWorkpCount = 1;
 
+        // Kør DB-opdatering i baggrunden, så UI ikke fryser.
         _ = Task.Run(async () =>
         {
-            // Update DB
             try
             {
+                // Sikrer DB/tabeller eksisterer
                 await DatabaseService.InitializeAsync();
-                // Change count
+
+                // Opdater count i DB med delta
                 var newValue = await _inventory.ChangeCountAsync(color, delta);
 
-
+                // UI opdatering skal ske på UI-tråden
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    // Update relevant text box
                     switch (color)
                     {
                         case ComponentColor.Red: RedCountText.Text = newValue.ToString(); break;
@@ -226,10 +292,10 @@ public partial class ControlView : Window
         });
     }
 
+    // Konverterer farvestreng fra robotlog ("RED"/"GREEN"/"BLUE") til enum
     private static bool TryParseColor(string colorText, out ComponentColor color)
     {
-        
-        color = ComponentColor.Blue;
+        color = ComponentColor.Blue; // default (skal overskrives ved success)
 
         switch (colorText)
         {
@@ -248,6 +314,7 @@ public partial class ControlView : Window
     }
 
     // ---- SORT BUTTONS ----
+    // Sender et specifikt script til robotten (manual sort per farve)
     private async void SortBlue_Click(object? sender, RoutedEventArgs e)
     {
         StatusText.Text = "Sending: sort blue...";
@@ -269,7 +336,7 @@ public partial class ControlView : Window
         StatusText.Text = "Command sent.";
     }
 
-    // ---- MANUAL INVENTORY BUTTONS ----
+    
     private async void IncRed_Click(object? sender, RoutedEventArgs e) => await AdjustAsync(ComponentColor.Red, +1);
     private async void DecRed_Click(object? sender, RoutedEventArgs e) => await AdjustAsync(ComponentColor.Red, -1);
 
@@ -279,7 +346,8 @@ public partial class ControlView : Window
     private async void IncBlue_Click(object? sender, RoutedEventArgs e) => await AdjustAsync(ComponentColor.Blue, +1);
     private async void DecBlue_Click(object? sender, RoutedEventArgs e) => await AdjustAsync(ComponentColor.Blue, -1);
 
-    // ---- SORT ALL QUEUE ----
+   
+    // Starter en sekvens som sender scripts i rækkefølge: Blue -> Green -> Red
     private async void SortAll_Click(object? sender, RoutedEventArgs e)
     {
         if (_queueRunning)
@@ -295,16 +363,19 @@ public partial class ControlView : Window
         await SendCurrentQueueScriptAsync();
     }
 
+    // Stopper kun kølogikken i GUI (robotten kan stadig være i gang med det script der allerede er sendt).
     private void CancelQueue_Click(object? sender, RoutedEventArgs e)
     {
         _queueRunning = false;
         StatusText.Text = "Sort All cancelled.";
     }
 
+    // Sender det script som køen peger på lige nu.
     private async Task SendCurrentQueueScriptAsync()
     {
         if (!_queueRunning) return;
 
+        // Hvis vi er færdige, stop køen.
         if (_queueIndex >= _queue.Length)
         {
             _queueRunning = false;
@@ -329,14 +400,18 @@ public partial class ControlView : Window
         }
     }
 
+    // Regex til at finde: "RUN <name> END"
     private static readonly Regex RunEndRegex =
         new(@"^\s*RUN\s+(?<name>.+?)\s+END\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    // Kører når der kommer log-linjer, og Sort All er aktiv.
+    // Hvis vi ser END for det forventede runName, sender vi næste script.
     private void TryHandleRunEnd(string line)
     {
         if (!_queueRunning)
             return;
 
+        // Rens typiske escape-ting ud
         line = line.Replace("\\n", "").Trim();
 
         var m = RunEndRegex.Match(line);
@@ -345,11 +420,13 @@ public partial class ControlView : Window
 
         var runName = m.Groups["name"].Value.Trim();
 
+        // Sikkerhed: index skal være gyldigt
         if (_queueIndex < 0 || _queueIndex >= _queue.Length)
             return;
 
         var expected = _queue[_queueIndex].RunName;
 
+        // Hvis vi får END for et andet script end det vi venter på, ignorer vi det.
         if (!runName.Equals(expected, StringComparison.OrdinalIgnoreCase))
         {
             _logLines.Add($"QUEUE: END ignored (got '{runName}', expected '{expected}')");
@@ -357,6 +434,7 @@ public partial class ControlView : Window
             return;
         }
 
+        // END for forventet script er modtaget -> næste i køen
         _queueIndex++;
 
         if (_queueIndex >= _queue.Length)
@@ -369,7 +447,7 @@ public partial class ControlView : Window
         _logLines.Add($"QUEUE: {runName} END detected → sending next");
         LogList.ScrollIntoView(_logLines[^1]);
 
-        // Run on UI thread (SendCurrentQueueScriptAsync updates StatusText)
+        // Kør på UI-tråden (SendCurrentQueueScriptAsync opdaterer StatusText)
         _ = Dispatcher.UIThread.InvokeAsync(async () => await SendCurrentQueueScriptAsync());
     }
 }
