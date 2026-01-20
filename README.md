@@ -53,11 +53,15 @@ The system is designed as an educational project focusing on system design, cont
 
 System Architecture
 The application follows a layered architecture:
+
 View layer
+
 - LoginWindow
 - AdminWindow
 - ControlView
+
 Service / Repository layer
+
 - RobotService
 - UserRepository
 - InventoryRepository
@@ -65,6 +69,8 @@ Service / Repository layer
 - Data / Model layer
 - DatabaseService
 - ComponentColor
+
+
 Dependencies flow top-down:
 Views depend on services and repositories, which in turn depend on shared data services and models.
 
