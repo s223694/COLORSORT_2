@@ -53,11 +53,11 @@ The system is designed as an educational project focusing on system design, cont
 
 System Architecture
 The application follows a layered architecture:
-- View layer
+View layer
 - LoginWindow
 - AdminWindow
 - ControlView
-- Service / Repository layer
+Service / Repository layer
 - RobotService
 - UserRepository
 - InventoryRepository
